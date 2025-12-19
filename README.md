@@ -1,7 +1,8 @@
-# ReconSentinel v0 — Passive-first Recon Autopilot (Safety-First)
+# Recon Sentinel
 
-> **Purpose**: Turn mundane recon into a safe, repeatable, *passive-first* workflow that produces a clean **casefile.md** with clear next steps.  
-> **Ethics**: For **authorized** use only. Scope is strictly enforced by `scope.yaml`.
+> Security reconnaissance toolkit (v0.1).
+> 
+> This README is a temporary placeholder. A full project description is being authored by the team.
 
 ## Features (v0)
 - **Scope guard**: refuses out-of-scope targets.
