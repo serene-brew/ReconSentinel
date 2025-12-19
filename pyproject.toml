@@ -1,5 +1,6 @@
 [project]
-name = "recon-sentinel"version = "0.1.0"
+name = "recon-sentinel"
+version = "0.1.0"
 description = "Passive-first recon autopilot: scope-aware OSINT with explainable, approval-gated next steps."
 readme = "README.md"
 requires-python = ">=3.10"
