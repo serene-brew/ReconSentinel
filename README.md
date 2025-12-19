@@ -28,6 +28,19 @@ recon-sentinel run --scope scope.yaml --out runs
 # 5) Open your casefile
 ls runs/*/casefile.md
 ```
+
+## Smoke Test (v0.1)
+
+Run this on a fresh clone to confirm the tool installs and produces a casefile.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+cp fixtures/scope.example.yaml scope.yaml
+recon-sentinel run --scope scope.yaml --out runs
+test -f "$(ls -1d runs/* 2>/dev/null | head -n1)/casefile.md" && echo "SMOKE TEST PASS"
+```
+
 ## New Opt-In Flags (Speed & Visibility)
 
 These are **additive** features; defaults remain conservative (full DNS set, serial lookups). The CLI will print a hint, but you must **opt in**.
@@ -45,13 +58,6 @@ These are **additive** features; defaults remain conservative (full DNS set, ser
   Runs DNS lookups in parallel (e.g., `10–50`). Start with `20` and tune for your network/ISP. Default is `0` (serial), which is slow but maximally conservative.
 
 > Tip: Combine `--dns-fast` + `--dns-workers` for big speedups; add `--skip-internal` for the fastest public-only sweep.
-
-### Ready-Made Recipes
-
-- **Baseline (comprehensive, default behavior)**  
-  ```bash
-  ./recon run -i --out runs --tag normal
-
 
 
 ## Safety & Ethics
@@ -79,7 +85,7 @@ This project is a **passive-first reconnaissance helper** intended for **lawful 
 
 By using this project, you acknowledge and agree to the above.
 
-➡️ **Read the full [DISCLAIMER & Acceptable Use](./DISCLAIMER.md).**
+**Read the full [DISCLAIMER & Acceptable Use](./DISCLAIMER.md).**
 
 ## Community Note from the Maintainer
 
