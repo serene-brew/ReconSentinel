@@ -1,0 +1,31 @@
+[project]
+name = "recon-sentinel"version = "0.1.0"
+description = "Passive-first recon autopilot: scope-aware OSINT with explainable, approval-gated next steps."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Your Name", email = "you@example.com"}]
+dependencies = [
+  "typer>=0.12",
+  "PyYAML>=6",
+  "requests>=2.32",
+  "dnspython>=2.6.1",
+  "jinja2>=3.1",
+  "rich>=13.7",
+  "tldextract>=3.4"
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# 👇 This tells Setuptools to ONLY package our code folder
+[tool.setuptools.packages.find]
+include = ["recon_sentinel*"]
+exclude = ["fixtures*"]
+
+# 👇 Include non-Python files we need at runtime
+[tool.setuptools.package-data]
+"recon_sentinel" = ["templates/*.j2", "rules/*.yaml"]
+
+[project.scripts]
+recon-sentinel = "recon_sentinel.cli:app"

@@ -1,0 +1,11 @@
+org: Example Corp
+domains:
+  - example.com
+  - example.org
+policy:
+  passive_only: true
+notes: >
+  Authorized use only. Targets and data access approved by the owner.
+resolvers:
+  - 1.1.1.1
+  - 8.8.8.8

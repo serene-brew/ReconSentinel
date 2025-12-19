@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --- resolve script path even when called via symlink ---
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  TARGET="$(readlink "$SOURCE")"
+  if [[ "$TARGET" == /* ]]; then
+    SOURCE="$TARGET"
+  else
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$DIR/$TARGET"
+  fi
+done
+PROJECT_ROOT="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+cd "$PROJECT_ROOT"
+
+VENV_DIR="${VENV:-.venv}"
+PYBIN="$VENV_DIR/bin/python"
+
+ensure_venv() {
+  if [[ ! -d "$VENV_DIR" || ! -x "$PYBIN" ]]; then
+    echo "ℹ No usable venv found at '$VENV_DIR'. Bootstrapping…"
+    if [[ ! -x "./setup_venv.sh" ]]; then
+      echo "❌ Missing ./setup_venv.sh in $PROJECT_ROOT."
+      echo "   Run: python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt"
+      exit 1
+    fi
+    bash ./setup_venv.sh
+  fi
+}
+
+activate_venv() {
+  # shellcheck disable=SC1090
+  source "$VENV_DIR/bin/activate"
+}
+
+doctor() {
+  echo "🔎 ReconSentinel doctor"
+  command -v python3 >/dev/null || { echo "❌ python3 not found"; exit 1; }
+  ensure_venv
+  activate_venv
+  python - <<'PY'
+mods = ["typer","rich","jinja2","yaml","requests","dns","markdown"]
+missing = []
+for m in mods:
+    try:
+        __import__(m)
+    except Exception:
+        missing.append(m)
+import sys
+print("Python:", sys.version.split()[0])
+print("Venv OK:", "yes")
+print("Missing modules:", ", ".join(missing) if missing else "none")
+PY
+}
+
+main() {
+  if [[ "${1:-}" == "doctor" ]]; then
+    doctor
+    exit 0
+  fi
+
+  ensure_venv
+  activate_venv
+  exec "$PYBIN" -m recon_sentinel.cli "$@"
+}
+
+main "$@"
+

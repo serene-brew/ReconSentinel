@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.venv/
+runs/
+recon_sentinel.egg-info/
+*.sqlite3
+*.prof

@@ -1,0 +1,22 @@
+# ReconSentinel rules: mapping simple conditions to "why it matters" and "next steps"
+findings:
+  wildcard_cert:
+    why: "A wildcard certificate (*.domain) can indicate broad subdomain coverage; monitor for typosquats and misconfigured subdomains."
+    next_steps:
+      - "Enumerate subdomains passively (CT/DNS)."
+      - "Validate that sensitive subdomains are not exposed."
+  dangling_cname:
+    why: "CNAME points to a cloud/service provider domain that may be claimable if misconfigured."
+    next_steps:
+      - "Verify target CNAME existence; if NXDOMAIN, check for takeover conditions per provider."
+      - "Lock DNS or claim resource to prevent takeovers."
+  consumer_mx:
+    why: "MX records pointing to consumer email can imply weak control paths and data routing outside enterprise controls."
+    next_steps:
+      - "Confirm MX ownership and SPF/DMARC/DMARC alignment."
+      - "Harden mail routes if unintended."
+  many_new_subdomains:
+    why: "A burst of new subdomains can indicate a new deployment or third-party integration, sometimes misconfigured."
+    next_steps:
+      - "Spot-check new hosts for sensitive surfaces (passive)."
+      - "Coordinate with owners to verify exposure is intended."
