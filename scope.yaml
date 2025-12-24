@@ -1,8 +1,11 @@
 org: Example Corp
 domains:
   - example.com
-  - example.org
-
+  - scanme.nmap.org
+port_scan_mode:
+  - custom
+  - -A -v
+dirbuster_wordlist: dir-buster/wordlists/example.txt
 policy:
   passive_only: true
 

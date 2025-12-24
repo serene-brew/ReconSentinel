@@ -19,6 +19,7 @@ from rich.console import Console
 from .scope import Scope
 from .modules.ct import fetch_ct_domains
 from .modules.dns import query_dns
+from .modules.librdirbuster import run_scan as run_dirbuster_scan
 from .render import render_casefile, write_casefile_html
 from .rules_loader import load_rules
 from .utils import write_json, read_json
@@ -254,6 +255,13 @@ def _dns_worker(host: str, resolvers: List[str]) -> Tuple[str, Dict[str, list]]:
     return host, recs
 
 
+def _normalize_url(value: str) -> str:
+    """Ensure a URL has a scheme; default to http:// when missing."""
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    return f"http://{value}"
+
+
 app = typer.Typer(
     help=APP_HELP,
     add_completion=False,
@@ -286,6 +294,9 @@ def run(
     ),
     dns_workers: int = typer.Option(
         0, "--dns-workers", help="(Opt-in) Parallel DNS worker threads (e.g., 10–50). Default 0/1 = serial."
+    ),
+    skip_port_scan: bool = typer.Option(
+        False, "--skip-port-scan", help="Skip the port scanning phase even if port_scan_mode is configured."
     ),
 ):
     _setup_logging(verbose)
@@ -412,6 +423,78 @@ def run(
     write_json(artifacts_dir / "dns_issues.json", dns_issues)
     logging.info("DNS: done.")
 
+    # 2.5) Port Scanning — only if port_scan_mode set and not skipped
+    portscan_artifacts = []
+    if not skip_port_scan and getattr(scope_obj, 'port_scan_mode', []) and len(scope_obj.port_scan_mode) > 0:
+        from .modules.librpscan import RpscanClient
+        from dataclasses import asdict
+        port_mode = scope_obj.port_scan_mode[0] if isinstance(scope_obj.port_scan_mode, list) and len(scope_obj.port_scan_mode) > 0 else ''
+        port_flags = scope_obj.port_scan_mode[1] if isinstance(scope_obj.port_scan_mode, list) and len(scope_obj.port_scan_mode) > 1 else None
+        portscan_client = RpscanClient()
+        console.print("[bold][cyan]Launching port scanning as per scope.yaml...[/cyan][/bold]")
+        # Only scan the base domains from scope.yaml, not discovered subdomains
+        for domain in scope_obj.domains:
+            try:
+                console.print(f"\n[bold]Scanning {domain}...[/bold]")
+                if port_mode == 'stealthy':
+                    result = portscan_client.scan_stealthy(domain)
+                elif port_mode == 'aggressive':
+                    result = portscan_client.scan_aggressive(domain)
+                elif port_mode == 'comprehensive':
+                    result = portscan_client.scan_comprehensive(domain)
+                elif port_mode == 'udp':
+                    result = portscan_client.scan_udp(domain)
+                elif port_mode == 'all_ports':
+                    result = portscan_client.scan_all_ports(domain)
+                elif port_mode == 'os_detection':
+                    result = portscan_client.scan_os_detection(domain)
+                elif port_mode == 'custom' and port_flags:
+                    result = portscan_client.scan_custom(domain, port_flags)
+                else:
+                    result = portscan_client.scan(domain)
+
+                # Print structured output to terminal
+                portscan_client.print_result(result, f"Port Scan: {domain}")
+
+                artifact_path = artifacts_dir / f"port_scanner_{domain}.json"
+                write_json(artifact_path, asdict(result))
+                portscan_artifacts.append({"domain": domain, "artifact_path": str(artifact_path)})
+            except Exception as ex:
+                console.print(f"[red]Port scan failed for {domain}: {ex}[/red]")
+        console.print(f"\n[green][/] Port scan artifacts written for {len(portscan_artifacts)} domains.")
+    elif skip_port_scan:
+        console.print("[yellow]Skipping port scan phase due to --skip-port-scan\n[/yellow]")
+    elif not getattr(scope_obj, 'port_scan_mode', []):
+        console.print("[dim]No port_scan_mode found in scope.yaml; skipping port scan phase.[/dim]")
+
+    # 2.6) DirBuster — run against scope domains when wordlist is provided
+    dirbuster_results = []
+    console.rule("DirBuster Scanning Phase")
+    if getattr(scope_obj, "dirbuster_wordlist", ""):
+        wordlist_path = Path(scope_obj.dirbuster_wordlist).expanduser()
+        if not wordlist_path.exists():
+            console.print(f"[yellow]DirBuster skipped: wordlist not found at {wordlist_path}[/yellow]")
+        else:
+            console.print(f"[bold][cyan]Running DirBuster with wordlist: {wordlist_path}[/cyan][/bold]")
+            for domain in scope_obj.domains:
+                target_url = _normalize_url(domain)
+                safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", domain)
+                artifact_json = artifacts_dir / f"dirbuster_{safe_name}.json"
+                try:
+                    findings = run_dirbuster_scan(target_url, str(wordlist_path), output_file="", threads=10)
+                    write_json(artifact_json, findings)
+                    dirbuster_results.append({
+                        "target": target_url,
+                        "findings": findings,
+                        "artifact_path": str(artifact_json),
+                    })
+                    console.print(f"  [green]DirBuster[/green] {target_url} → {len(findings)} finding(s)")
+                except Exception as ex:
+                    console.print(f"[red]DirBuster failed for {target_url}: {ex}[/red]")
+            console.print(f"\n[green][/] DirBuster artifacts written for {len(dirbuster_results)} domain(s).\n")
+    else:
+        console.print("[dim]No dirbuster_wordlist found in scope.yaml; skipping DirBuster phase.[/dim]")
+
     # 3) Findings: map to rules/explanations (with safe fallback)
     logging.info("Findings: analyzing artifacts…")
     try:
@@ -462,7 +545,23 @@ def run(
         "total_subdomains": len(all_hosts),
         "new_subdomains": delta["counts"]["new"],
         "dns_issues": dns_issues,
+        "dirbuster_findings": sum(len(r.get("findings", [])) for r in dirbuster_results),
     }
+
+    # Load port scan data for reporting
+    portscan_data = []
+    for artifact_info in portscan_artifacts:
+        try:
+            artifact_path = Path(artifact_info["artifact_path"])
+            if artifact_path.exists():
+                scan_data = read_json(artifact_path)
+                portscan_data.append({
+                    "domain": artifact_info["domain"],
+                    "artifact_path": str(artifact_path),
+                    "data": scan_data
+                })
+        except Exception as ex:
+            logging.warning(f"Failed to load port scan data from {artifact_info.get('artifact_path', 'unknown')}: {ex}")
 
     # 5) Render casefile (Markdown + HTML)
     logging.info("Render: generating casefile.md…")
@@ -474,6 +573,9 @@ def run(
         "findings": findings,
         "inventory": inv_summary,
         "delta": delta,  # so templates can show what's new/removed
+        "portscan_artifacts": portscan_artifacts,
+        "portscan_data": portscan_data,
+        "dirbuster_results": dirbuster_results,
     }
 
     template_dir = Path(__file__).parent / "templates"
