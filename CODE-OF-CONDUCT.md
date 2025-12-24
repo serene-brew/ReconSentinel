@@ -1,6 +1,6 @@
 ## Code of Conduct — ReconSentinel
 
-ReconSentinel is intended for ethical, authorized, and lawful security research only.
+ReconSentinel is intended for ethical, authorized, and lawful security research only.<br>
 Read <a href="https://github.com/serene-brew/ReconSentinel/blob/main/DISCLAIMER.md">DISCLAIMER.md</a> before proceeding to contribute
 All contributors and users must:
 
@@ -12,5 +12,5 @@ Misuse, harassment, illegal activity, or unauthorized testing is strictly prohib
 Maintainers may remove contributions or restrict access for violations.
 
 ---
-Copyright © 2025 knightsky-cpu
-Licensed to serene-brew org
+Copyright © 2025 knightsky-cpu <br>
+Licensed to Serene-Brew Org.
