@@ -11,6 +11,9 @@
 - **Total subdomains (in-scope):** {{ stats.total_subdomains }}
 - **New since last run:** {{ stats.new_subdomains }}
 - **DNS issues detected:** {{ stats.dns_issues | length }}
+{% if dirbuster_results and dirbuster_results|length > 0 %}
+- **DirBuster findings:** {{ stats.dirbuster_findings }}
+{% endif %}
 {% if portscan_data and portscan_data|length > 0 %}
 - **Domains port scanned:** {{ portscan_data|length }}
 {% endif %}
@@ -39,6 +42,28 @@
 {% endfor %}
 
 ---
+
+## Directory Busting Results
+{% if dirbuster_results and dirbuster_results|length > 0 %}
+{% for run in dirbuster_results %}
+### {{ run.target }}
+
+**Artifact:** `{{ run.artifact_path }}`
+
+{% if run.findings and run.findings|length > 0 %}
+| Status | URL |
+|--------|-----|
+{% for f in run.findings %}| {{ f.status }} | {{ f.url }} |
+{% endfor %}
+{% else %}
+_No findings for this target._
+{% endif %}
+
+---
+{% endfor %}
+{% else %}
+_DirBuster skipped or produced no findings._
+{% endif %}
 
 ## Port Scan Results
 {% if portscan_data and portscan_data|length > 0 %}
