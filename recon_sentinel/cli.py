@@ -19,6 +19,7 @@ from rich.console import Console
 from .scope import Scope
 from .modules.ct import fetch_ct_domains
 from .modules.dns import query_dns
+from .modules.librdirbuster import run_scan as run_dirbuster_scan
 from .render import render_casefile, write_casefile_html
 from .rules_loader import load_rules
 from .utils import write_json, read_json
@@ -254,6 +255,13 @@ def _dns_worker(host: str, resolvers: List[str]) -> Tuple[str, Dict[str, list]]:
     return host, recs
 
 
+def _normalize_url(value: str) -> str:
+    """Ensure a URL has a scheme; default to http:// when missing."""
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    return f"http://{value}"
+
+
 app = typer.Typer(
     help=APP_HELP,
     add_completion=False,
@@ -459,6 +467,34 @@ def run(
     elif not getattr(scope_obj, 'port_scan_mode', []):
         console.print("[dim]No port_scan_mode found in scope.yaml; skipping port scan phase.[/dim]")
 
+    # 2.6) DirBuster — run against scope domains when wordlist is provided
+    dirbuster_results = []
+    console.rule("DirBuster Scanning Phase")
+    if getattr(scope_obj, "dirbuster_wordlist", ""):
+        wordlist_path = Path(scope_obj.dirbuster_wordlist).expanduser()
+        if not wordlist_path.exists():
+            console.print(f"[yellow]DirBuster skipped: wordlist not found at {wordlist_path}[/yellow]")
+        else:
+            console.print(f"[bold][cyan]Running DirBuster with wordlist: {wordlist_path}[/cyan][/bold]")
+            for domain in scope_obj.domains:
+                target_url = _normalize_url(domain)
+                safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", domain)
+                artifact_json = artifacts_dir / f"dirbuster_{safe_name}.json"
+                try:
+                    findings = run_dirbuster_scan(target_url, str(wordlist_path), output_file="", threads=10)
+                    write_json(artifact_json, findings)
+                    dirbuster_results.append({
+                        "target": target_url,
+                        "findings": findings,
+                        "artifact_path": str(artifact_json),
+                    })
+                    console.print(f"  [green]DirBuster[/green] {target_url} → {len(findings)} finding(s)")
+                except Exception as ex:
+                    console.print(f"[red]DirBuster failed for {target_url}: {ex}[/red]")
+            console.print(f"\n[green][/] DirBuster artifacts written for {len(dirbuster_results)} domain(s).\n")
+    else:
+        console.print("[dim]No dirbuster_wordlist found in scope.yaml; skipping DirBuster phase.[/dim]")
+
     # 3) Findings: map to rules/explanations (with safe fallback)
     logging.info("Findings: analyzing artifacts…")
     try:
@@ -509,6 +545,7 @@ def run(
         "total_subdomains": len(all_hosts),
         "new_subdomains": delta["counts"]["new"],
         "dns_issues": dns_issues,
+        "dirbuster_findings": sum(len(r.get("findings", [])) for r in dirbuster_results),
     }
 
     # Load port scan data for reporting
@@ -538,6 +575,7 @@ def run(
         "delta": delta,  # so templates can show what's new/removed
         "portscan_artifacts": portscan_artifacts,
         "portscan_data": portscan_data,
+        "dirbuster_results": dirbuster_results,
     }
 
     template_dir = Path(__file__).parent / "templates"
