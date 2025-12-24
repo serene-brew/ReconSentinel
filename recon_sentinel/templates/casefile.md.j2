@@ -3,7 +3,7 @@
 **Run time:** {{ run_time }}  
 **Scope domains:** {% for d in scope_domains %}`{{ d }}`{% if not loop.last %}, {% endif %}{% endfor %}
 
-> **Safety**: This report is generated in **passive-only** mode. No active scanning was performed.
+> **Safety**: This report includes passive reconnaissance data. {% if portscan_data and portscan_data|length > 0 %}**Active port scanning was performed on scope domains.**{% else %}No active port scanning was performed.{% endif %}
 
 ---
 
@@ -11,6 +11,9 @@
 - **Total subdomains (in-scope):** {{ stats.total_subdomains }}
 - **New since last run:** {{ stats.new_subdomains }}
 - **DNS issues detected:** {{ stats.dns_issues | length }}
+{% if portscan_data and portscan_data|length > 0 %}
+- **Domains port scanned:** {{ portscan_data|length }}
+{% endif %}
 
 ---
 
@@ -34,6 +37,101 @@
 {% for item in inventory %}
 - `{{ item.host }}` — {{ item.records_summary }}
 {% endfor %}
+
+---
+
+## Port Scan Results
+{% if portscan_data and portscan_data|length > 0 %}
+{% for scan in portscan_data %}
+### {{ scan.domain }}
+
+**Artifact:** `{{ scan.artifact_path }}`
+
+#### Summary
+{% if scan.data.summary %}
+{% for line in scan.data.summary %}
+- {{ line }}
+{% endfor %}
+{% else %}
+_(No summary available)_
+{% endif %}
+
+#### Open Ports
+{% if scan.data.ports and scan.data.ports|length > 0 %}
+| Port | Protocol | Service | Product | Version |
+|------|----------|---------|---------|---------|
+{% for port in scan.data.ports %}| {{ port.port }} | {{ port.protocol or "-" }} | {{ port.service or "-" }} | {{ port.product or "-" }} | {{ port.version or "-" }} |
+{% endfor %}
+{% else %}
+_No open ports found_
+{% endif %}
+
+#### Host Information
+{% if scan.data.host_addresses or scan.data.hostnames %}
+{% if scan.data.host_addresses %}
+**Addresses:**
+{% for addr in scan.data.host_addresses %}
+- {{ addr }}
+{% endfor %}
+{% endif %}
+{% if scan.data.hostnames %}
+**Hostnames:**
+{% for hostname in scan.data.hostnames %}
+- {{ hostname }}
+{% endfor %}
+{% endif %}
+{% else %}
+_No host information available_
+{% endif %}
+
+#### Operating System Detection
+{% if scan.data.operating_systems and scan.data.operating_systems|length > 0 %}
+**Operating Systems:**
+{% for os in scan.data.operating_systems %}
+- {{ os }}
+{% endfor %}
+{% endif %}
+{% if scan.data.os_matches and scan.data.os_matches|length > 0 %}
+**OS Matches:**
+{% for match in scan.data.os_matches %}
+- {{ match }}
+{% endfor %}
+{% endif %}
+{% if scan.data.os_classes and scan.data.os_classes|length > 0 %}
+**OS Classes:**
+{% for osclass in scan.data.os_classes %}
+- {{ osclass }}
+{% endfor %}
+{% endif %}
+{% if not scan.data.operating_systems and not scan.data.os_matches and not scan.data.os_classes %}
+_No OS detection information available_
+{% endif %}
+
+#### NSE Script Results
+{% if scan.data.nse_scripts and scan.data.nse_scripts|length > 0 %}
+```
+{% for script in scan.data.nse_scripts %}
+{{ script }}
+{% endfor %}
+```
+{% else %}
+_No NSE script results available_
+{% endif %}
+
+#### Traceroute
+{% if scan.data.traceroute and scan.data.traceroute|length > 0 %}
+{% for hop in scan.data.traceroute %}
+- {{ hop }}
+{% endfor %}
+{% else %}
+_No traceroute information available_
+{% endif %}
+
+---
+{% endfor %}
+{% else %}
+_No port scan results available. Port scanning was either skipped or not configured._
+{% endif %}
 
 ---
 
