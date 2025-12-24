@@ -1,0 +1,3 @@
+/home/mintraven/Desktop/projects/contrib/test/build/CMakeFiles/librpscan.dir
+/home/mintraven/Desktop/projects/contrib/test/build/CMakeFiles/edit_cache.dir
+/home/mintraven/Desktop/projects/contrib/test/build/CMakeFiles/rebuild_cache.dir

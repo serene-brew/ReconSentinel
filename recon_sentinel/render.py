@@ -28,7 +28,13 @@ def render_casefile_html(template_dir: Path, context: Dict[str, Any]) -> str:
     md = render_casefile(template_dir, context)
     try:
         from markdown import markdown as md_to_html
-        body = md_to_html(md, extensions=["fenced_code", "tables"])
+        # Use markdown.extensions.tables for proper table support
+        try:
+            from markdown.extensions.tables import TableExtension
+            body = md_to_html(md, extensions=["fenced_code", TableExtension(), "nl2br"])
+        except ImportError:
+            # Fallback if TableExtension not available
+            body = md_to_html(md, extensions=["fenced_code", "tables", "nl2br"])
     except Exception:
         body = f"<pre>{html.escape(md)}</pre>"
 
@@ -45,10 +51,17 @@ def render_casefile_html(template_dir: Path, context: Dict[str, Any]) -> str:
   a {{ color: var(--accent); }}
   .container {{ max-width: 960px; margin: 2rem auto; padding: 0 1rem; }}
   h1, h2, h3 {{ line-height: 1.25; }}
-  table {{ width: 100%; border-collapse: collapse; margin: 1rem 0; }}
-  th, td {{ border: 1px solid #2a2f36; padding: .5rem .6rem; }}
-  code {{ background: #1a1f26; padding: .15rem .3rem; border-radius: .25rem; }}
-  pre code {{ display: block; padding: 1rem; overflow-x: auto; }}
+  table {{ width: 100%; border-collapse: collapse; margin: 1rem 0; border: 1px solid #2a2f36; display: table; }}
+  thead {{ display: table-header-group; }}
+  tbody {{ display: table-row-group; }}
+  tr {{ display: table-row; }}
+  th {{ background: #1a1f26; border: 1px solid #2a2f36; padding: .75rem .6rem; text-align: left; font-weight: 600; display: table-cell; }}
+  td {{ border: 1px solid #2a2f36; padding: .5rem .6rem; display: table-cell; }}
+  tbody tr:nth-child(even) {{ background: #12161c; }}
+  tbody tr:hover {{ background: #1e242c; }}
+  code {{ background: #1a1f26; padding: .15rem .3rem; border-radius: .25rem; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; }}
+  pre {{ background: #1a1f26; border: 1px solid #2a2f36; border-radius: .5rem; padding: 1rem; overflow-x: auto; margin: 1rem 0; }}
+  pre code {{ display: block; padding: 0; overflow-x: auto; background: transparent; border: none; white-space: pre-wrap; word-wrap: break-word; }}
   .muted {{ color: var(--muted); }}
   .card {{ background: var(--card); border: 1px solid #1e242c; border-radius: .75rem; padding: 1rem; }}
 </style>

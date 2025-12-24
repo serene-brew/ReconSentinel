@@ -28,12 +28,23 @@ class Scope:
     notes: str = ""
     resolvers: List[str] = field(default_factory=lambda: ["1.1.1.1", "8.8.8.8"])
     seeds: dict = field(default_factory=lambda: {"hosts": []})
+    port_scan_mode: list = field(default_factory=list)
 
     @staticmethod
     def load(path: str) -> "Scope":
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         data = _normalize_scope_data(data)
+        # Normalize port_scan_mode as a list, accepting multiple syntaxes, first only
+        _psm = data.get("port_scan_mode", [])
+        if not _psm:
+            port_scan_mode = []
+        elif isinstance(_psm, list):
+            port_scan_mode = _psm if len(_psm) <= 2 else _psm[:2]
+        elif isinstance(_psm, str):
+            port_scan_mode = [_psm]
+        else:
+            port_scan_mode = []
         return Scope(
             org=data.get("org", ""),
             domains=data.get("domains", []),
@@ -41,6 +52,7 @@ class Scope:
             notes=data.get("notes", ""),
             resolvers=data.get("resolvers", ["1.1.1.1", "8.8.8.8"]),
             seeds=data.get("seeds", {"hosts": []}),
+            port_scan_mode=port_scan_mode
         )
 
     def in_scope_domain(self, host: str) -> bool:

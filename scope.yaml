@@ -1,8 +1,10 @@
 org: Example Corp
 domains:
   - example.com
-  - example.org
-
+  - scanme.nmap.org
+port_scan_mode:
+  - custom
+  - -A -v
 policy:
   passive_only: true
 
