@@ -604,7 +604,7 @@ if __name__ != "__main__":
 
 
 __doc__: str = """
-librpscan_wrapper - Professional nmap scanning wrapper
+librpscan - nmap scanning wrapper
 
 This module provides the following main components:
 
@@ -617,8 +617,14 @@ Functions:
     None - All functionality provided through classes
 
 Example:
-    >>> from librpscan_wrapper import RpscanClient
-    >>> client = RpscanClient("./librpscan.so")
+    >>> from librpscan import RpscanClient
+    >>> client = RpscanClient()
+    >>> result = client.scan_aggressive("scanme.nmap.org")
+    >>> client.print_result(result, "Aggressive Scan Results")
+
+Example (for custom librpscan.so path):
+    >>> from librpscan import RpscanClient
+    >>> client = RpscanClient("/path/to/librpscan.so")
     >>> result = client.scan_aggressive("scanme.nmap.org")
     >>> client.print_result(result, "Aggressive Scan Results")
 
@@ -626,7 +632,6 @@ Dependencies:
     - ctypes (standard library)
     - dataclasses (standard library)
     - rich (external package)
-    - librpscan.so (compiled C library)
-
-For detailed usage and API documentation, see the class docstrings.
+    - librpscan.so (compiled C library) [located inside ReconSentinel/port-scanner/build/lib of the main git repo]
+SOURCE: https://github.com/serene-brew/ReconSentinel
 """
