@@ -14,7 +14,10 @@ from pathlib import Path
 from typing import Optional, Set, Tuple, Dict, List
 
 import typer
+from typer.core import TyperGroup
 from rich.console import Console
+import sys
+import click
 
 from .scope import Scope
 from .modules.ct import fetch_ct_domains
@@ -24,139 +27,33 @@ from .render import render_casefile, write_casefile_html
 from .rules_loader import load_rules
 from .utils import write_json, read_json
 
+console = Console()
 
 APP_HELP = """\
-ReconSentinel Command Reference (dev-box edition)
+Usage: recon <command> [options]
 
-Run from the repo root and use `./recon` in all examples below. Only if you explicitly
-make it global (see the end of this help) can you omit the `./` prefix.
+Display information about reconnaissance results and run passive recon scans.
 
-──────────────────────────────── Core ────────────────────────────────
-• Health check
-  ./recon doctor
+Commands:
+  run     Run passive recon against the defined scope.
+  diff    Diff two runs to see what's new/removed.
 
-• Run (interactive prompts)
-  ./recon run -i --out runs --tag normal
+Run Options:
+  --scope PATH          Path to scope.yaml (or use -i/--interactive to enter values).
+  --out PATH            Output directory base (default: runs).
+  --tag STRING          Optional run tag, appended to run folder name.
+  -i, --interactive     Prompt for scope values (org, domains, seeds, resolvers).
+  -v, --verbose         Show detailed progress messages (spinner + periodic counters).
+  --dns-fast            Query only A/AAAA records for faster results.
+  --skip-internal       Skip internal-looking hosts (e.g., *.corp.*, .internal, .local, .lan).
+  --dns-workers N       Parallel DNS worker threads (e.g., 10–50). Default 0/1 = serial.
+  --skip-port-scan      Skip the port scanning phase even if port_scan_mode is configured.
 
-• Run (from a scope file)
-  ./recon run --scope scope.yaml --out runs --tag LABEL
-
-• Diff two runs
-  ./recon diff --a runs/run-OLD --b runs/run-NEW --out runs/diff.md
-
-──────────────────── New Opt-In Flags (Speed & Visibility) ────────────────────
-• Verbose progress
-  -v / --verbose — live spinner + periodic progress (heartbeats).
-
-• DNS fast path (A/AAAA only)
-  --dns-fast — only A and AAAA records are stored (faster I/O + less query volume).
-
-• Skip internal-looking hosts
-  --skip-internal — ignores internal-looking names (e.g., *.corp.*, .internal, .local, .lan).
-
-• Parallel DNS workers
-  --dns-workers N — run DNS lookups in parallel (e.g., 10–50).
-  Default behavior is unchanged unless you opt in.
-
-Tip: when you don’t use any speed flags, the CLI hints:
-“Tip: for faster results, try --dns-fast, --skip-internal, or --dns-workers N.”
-
-──────────────────────────── Ready-Made Run Recipes ────────────────────────────
-• Normal (baseline, comprehensive)
-  ./recon run -i --out runs --tag normal
-
-• Normal + visibility (adds heartbeats/spinner only)
-  ./recon run -i -v --out runs --tag vis
-
-• DNS fast path + concurrency (keep everything in scope)
-  ./recon run -i -v --dns-fast --dns-workers 20 --out runs --tag turbo
-
-• Turbo + skip internal-looking (fastest on large orgs)
-  ./recon run -i -v --dns-fast --skip-internal --dns-workers 20 --out runs --tag turbo-skip
-
-• Scoped file + speed flags (skip prompts)
-  ./recon run --scope scope.yaml -v --dns-fast --dns-workers 20 --out runs --tag scoped-fast
-
-──────────────────── Opening Reports (Newest or Specific) ──────────────────────
-• Open the newest HTML casefile — default browser (preferred)
-  xdg-open "$(ls -td runs/* | head -1)/casefile.html"
-
-• Open the newest HTML casefile — Firefox explicitly
-  firefox --new-window "$(ls -td runs/* | head -1)/casefile.html"
-
-• Open the newest Markdown casefile
-  xdg-open "$(ls -td runs/* | head -1)/casefile.md"
-  # or:
-  less "$(ls -td runs/* | head -1)/casefile.md"
-
-• Work with a specific run
-  RUN="runs/run-YYYYMMDD-HHMMSSZ[-tag]"
-  xdg-open "$RUN/casefile.html"
-  # artifacts folder:
-  ls -lh "$RUN/artifacts"
-
-──────────────────── Helpful “During Run” & Diagnostics ────────────────────────
-• Watch newest run’s artifacts appear/grow
-  watch -n 1 -d 'ls -lh "$(ls -td runs/* | head -1)"/artifacts'
-
-• Time a run (wall/CPU/RSS)
-  /usr/bin/time -f 'Elapsed: %E  CPU: %P  RSS: %M KB' ./recon run -i --out runs --tag bench
-
-• Measure DNS phase duration (newest run)
-  RUN="$(ls -td runs/* | head -1)"; \
-  CT_TS=$(stat -c %Y $(printf "%s\\n" "$RUN"/artifacts/ct_*.json | head -1)); \
-  DNS_TS=$(stat -c %Y "$RUN"/artifacts/dns_records.json); \
-  echo "$((DNS_TS-CT_TS)) seconds"
-
-• Diff two runs (what’s new/removed)
-  ./recon diff --a runs/run-OLD --b runs/run-NEW --out runs/diff.md
-  xdg-open runs/diff.md
-
-────────────────── Make `recon` Globally Available (no ./) ────────────────────
-This is optional, but a nice QoL improvement. After this, you can type `recon` from any directory.
-
-• Per-user symlink into ~/.local/bin (recommended)
-  mkdir -p ~/.local/bin
-  ln -sf "$(pwd)/recon" ~/.local/bin/recon
-
-  # ensure ~/.local/bin is on PATH for your shell:
-  grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc || \
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-  source ~/.bashrc
-  # now you can run globally:
-  recon doctor
-
-  # undo:
-  rm -f ~/.local/bin/recon
-
-• Temporary PATH for current shell (session-only)
-  export PATH="$(pwd):$PATH"
-  recon doctor
-
-Keep the symlink pointing at your dev-box repo. If you move the repo folder, update or recreate the link.
-
-──────────────────────────── Troubleshooting (Fast Answers) ───────────────────────────
-• “recon: command not found” → use ./recon from repo root, or add the symlink above.
-• “ModuleNotFoundError: typer” → run via the project’s venv (./setup_venv.sh again if needed).
-• “Run finished too fast / 0 hosts” → -v will show if crt.sh returned 503. Re-try when:
-  curl -s -o /dev/null -w '%{http_code}\n' 'https://crt.sh/?q=%25.google.com&output=json'
-  returns 200.
-• DNS feels slow → try --dns-workers 20 and/or --dns-fast. Keep default for full coverage runs.
-
-#############################################################
-#          __  _____ __ __           __        __     __    #
-# __  _  _|__|/ ____\__|  | __ ____ |__| ____ |  |___/  |_  #
-# \ \/ \/ /  \   __\|  |  |/ //    \|  |/ ___\|  |  \   __\ #
-#  \     /|  ||  |  |  |    <|   |  \  / /_/  >   Y  \  |   #
-#   \/\_/ |__||__|  |__|__|_ \___|  /__\___  /|___|  /__|   #
-#                           \/    \/  /_____/      \/       #
-#              wifiknight created this spell                #
-#############################################################
-
+Diff Options:
+  --a PATH              Path to older run dir.
+  --b PATH              Path to newer run dir.
+  --out PATH            Output markdown path (default: diff.md).
 """
-
-
-console = Console()
 
 def _stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
@@ -266,8 +163,26 @@ app = typer.Typer(
     help=APP_HELP,
     add_completion=False,
     no_args_is_help=True,
-    rich_markup_mode="markdown",
+    rich_markup_mode=None,
 )
+
+def _print_version():
+    """Print version information from VERSION file."""
+    version_file = Path(__file__).parent.parent / "VERSION"
+    if version_file.exists():
+        print(version_file.read_text(encoding="utf-8").strip())
+    else:
+        print("VERSION file not found")
+
+@app.callback(invoke_without_command=True)
+def main_callback(
+    ctx: typer.Context,
+    version: bool = typer.Option(False, "--version", "-v", help="Show version information and exit."),
+):
+    """Main callback - help is handled in main() before Typer processes it."""
+    if version:
+        _print_version()
+        raise typer.Exit()
 
 
 @app.command(help="Run passive recon against the defined scope.")
@@ -337,7 +252,19 @@ def run(
     artifacts_dir = run_dir / "artifacts"
     run_dir.mkdir(parents=True, exist_ok=True)
     artifacts_dir.mkdir(parents=True, exist_ok=True)
-
+    console.print("")
+    console.print('[bold cyan]██████╗ ███████╗ ██████╗ ██████╗ ███╗   ██╗███████╗███████╗███╗   ██╗████████╗██╗███╗   ██╗███████╗██╗[/bold cyan]') 
+    console.print('[bold cyan]██╔══██╗██╔════╝██╔════╝██╔═══██╗████╗  ██║██╔════╝██╔════╝████╗  ██║╚══██╔══╝██║████╗  ██║██╔════╝██║[/bold cyan]') 
+    console.print('[bold cyan]██████╔╝█████╗  ██║     ██║   ██║██╔██╗ ██║███████╗█████╗  ██╔██╗ ██║   ██║   ██║██╔██╗ ██║█████╗  ██║[/bold cyan]') 
+    console.print('[bold cyan]██╔══██╗██╔══╝  ██║     ██║   ██║██║╚██╗██║╚════██║██╔══╝  ██║╚██╗██║   ██║   ██║██║╚██╗██║██╔══╝  ██║[/bold cyan]') 
+    console.print('[bold cyan]██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║███████║███████╗██║ ╚████║   ██║   ██║██║ ╚████║███████╗███████╗[/bold cyan]') 
+    console.print('[bold cyan]╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝[/bold cyan]') 
+    console.print("")
+    console.print("[dim yellow]v1.0.0[/dim yellow]")
+    console.print("[dim yellow]Copyright (c) 2025, knightsky-cpu[/dim yellow]")
+    console.print("[dim yellow]Licensed to Serene-Brew[/dim yellow]")
+    console.print("")
+    console.print("")
     console.rule("ReconSentinel v0 — Passive run")
     console.print(f"[bold]Org:[/] {scope_obj.org}")
     console.print(f"[bold]Domains:[/] {', '.join(scope_obj.domains)}\n")
@@ -624,5 +551,77 @@ def diff(
 
 
 if __name__ == "__main__":
+    # Intercept version requests
+    # -v only works at global level (single arg) to avoid conflict with command -v flags
+    # --version works anywhere
+    has_version_flag = "--version" in sys.argv or (len(sys.argv) == 2 and sys.argv[1] == "-v")
+    
+    if has_version_flag:
+        version_file = Path(__file__).parent.parent / "VERSION"
+        if version_file.exists():
+            print(version_file.read_text(encoding="utf-8").strip())
+        else:
+            print("VERSION file not found")
+        sys.exit(0)
+    
+    # Intercept help requests to show plain text help (readelf style)
+    # Check for help flag anywhere in args
+    has_help_flag = "--help" in sys.argv or "-h" in sys.argv
+    
+    if has_help_flag:
+        # For main help (just --help or -h)
+        if len(sys.argv) == 2:
+            print(APP_HELP)
+            sys.exit(0)
+        # For command help (e.g., "run --help"), we need to format it manually
+        # Get the command name
+        cmd_name = None
+        for i, arg in enumerate(sys.argv):
+            if arg in ("--help", "-h") and i > 0:
+                cmd_name = sys.argv[i-1] if sys.argv[i-1] not in ("--help", "-h") else None
+                break
+        
+        if cmd_name:
+            # Build command-specific help manually
+            if cmd_name == "run":
+                print("""\
+Usage: recon run [OPTIONS]
+
+Run passive recon against the defined scope.
+
+Options:
+  --scope PATH          Path to scope.yaml (or use -i/--interactive to enter values).
+  --out PATH            Output directory base (default: runs).
+  --tag STRING          Optional run tag, appended to run folder name.
+  -i, --interactive     Prompt for scope values (org, domains, seeds, resolvers).
+  -v, --verbose         Show detailed progress messages (spinner + periodic counters).
+  --dns-fast            Query only A/AAAA records for faster results.
+  --skip-internal       Skip internal-looking hosts (e.g., *.corp.*, .internal, .local, .lan).
+  --dns-workers INTEGER Parallel DNS worker threads (e.g., 10–50). Default 0/1 = serial.
+  --skip-port-scan      Skip the port scanning phase even if port_scan_mode is configured.
+  -h, --help            Show this message and exit.
+""")
+            elif cmd_name == "diff":
+                print("""\
+Usage: recon diff [OPTIONS]
+
+Diff two runs to see what's new/removed.
+
+Options:
+  --a PATH    Path to older run dir.  [required]
+  --b PATH    Path to newer run dir.  [required]
+  --out PATH  Output markdown path (default: diff.md).
+  -h, --help  Show this message and exit.
+""")
+            else:
+                # Unknown command, show main help
+                print(APP_HELP)
+            sys.exit(0)
+    
+    # No args - show help (no_args_is_help=True)
+    if len(sys.argv) == 1:
+        print(APP_HELP)
+        sys.exit(0)
+    
     app()
 
