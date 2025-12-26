@@ -1,0 +1,26 @@
+[
+{
+  "directory": "/home/risersama/projects/ReconSentinel/build",
+  "command": "/usr/bin/g++ -Ddirbuster_EXPORTS -I/home/risersama/projects/ReconSentinel/dir-buster/include -g -std=gnu++11 -fPIC -o CMakeFiles/dirbuster.dir/src/dir_buster.cpp.o -c /home/risersama/projects/ReconSentinel/dir-buster/src/dir_buster.cpp",
+  "file": "/home/risersama/projects/ReconSentinel/dir-buster/src/dir_buster.cpp",
+  "output": "/home/risersama/projects/ReconSentinel/build/CMakeFiles/dirbuster.dir/src/dir_buster.cpp.o"
+},
+{
+  "directory": "/home/risersama/projects/ReconSentinel/build",
+  "command": "/usr/bin/g++ -Ddirbuster_EXPORTS -I/home/risersama/projects/ReconSentinel/dir-buster/include -g -std=gnu++11 -fPIC -o CMakeFiles/dirbuster.dir/src/http_client.cpp.o -c /home/risersama/projects/ReconSentinel/dir-buster/src/http_client.cpp",
+  "file": "/home/risersama/projects/ReconSentinel/dir-buster/src/http_client.cpp",
+  "output": "/home/risersama/projects/ReconSentinel/build/CMakeFiles/dirbuster.dir/src/http_client.cpp.o"
+},
+{
+  "directory": "/home/risersama/projects/ReconSentinel/build",
+  "command": "/usr/bin/g++ -Ddirbuster_EXPORTS -I/home/risersama/projects/ReconSentinel/dir-buster/include -g -std=gnu++11 -fPIC -o CMakeFiles/dirbuster.dir/src/bindings.cpp.o -c /home/risersama/projects/ReconSentinel/dir-buster/src/bindings.cpp",
+  "file": "/home/risersama/projects/ReconSentinel/dir-buster/src/bindings.cpp",
+  "output": "/home/risersama/projects/ReconSentinel/build/CMakeFiles/dirbuster.dir/src/bindings.cpp.o"
+},
+{
+  "directory": "/home/risersama/projects/ReconSentinel/build",
+  "command": "/usr/bin/g++ -I/home/risersama/projects/ReconSentinel/dir-buster/include -g -std=gnu++11 -fPIE -o CMakeFiles/dir_buster.dir/src/main.cpp.o -c /home/risersama/projects/ReconSentinel/dir-buster/src/main.cpp",
+  "file": "/home/risersama/projects/ReconSentinel/dir-buster/src/main.cpp",
+  "output": "/home/risersama/projects/ReconSentinel/build/CMakeFiles/dir_buster.dir/src/main.cpp.o"
+}
+]
