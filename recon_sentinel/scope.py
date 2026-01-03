@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 import yaml
 
 
@@ -33,6 +33,7 @@ class Scope:
     resolvers: List[str] = field(default_factory=lambda: ["1.1.1.1", "8.8.8.8"])
     seeds: dict = field(default_factory=lambda: {"hosts": []})
     port_scan_mode: list = field(default_factory=list)
+    port_scan_cookies: Optional[List[str]] = None
     dirbuster_wordlist: str = ""
 
     @staticmethod
@@ -40,16 +41,32 @@ class Scope:
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         data = _normalize_scope_data(data)
-        # Normalize port_scan_mode as a list, accepting multiple syntaxes, first only
+        # Normalize port_scan_mode as a list, accepting multiple syntaxes
         _psm = data.get("port_scan_mode", [])
+        port_scan_mode = []
+        port_scan_cookies = None
+        
         if not _psm:
             port_scan_mode = []
         elif isinstance(_psm, list):
-            port_scan_mode = _psm if len(_psm) <= 2 else _psm[:2]
+            if len(_psm) > 0:
+                port_scan_mode.append(_psm[0])  # First element is always the mode
+            if len(_psm) > 1:
+                # Second element can be flags (string) or cookies dict
+                second_elem = _psm[1]
+                if isinstance(second_elem, dict) and "cookies" in second_elem:
+                    # Extract cookies from dict
+                    cookies_list = second_elem.get("cookies", [])
+                    if isinstance(cookies_list, list):
+                        port_scan_cookies = [str(c) for c in cookies_list if c]
+                    elif cookies_list:
+                        port_scan_cookies = [str(cookies_list)]
+                elif isinstance(second_elem, str):
+                    # Backward compatibility: second element is flags
+                    port_scan_mode.append(second_elem)
         elif isinstance(_psm, str):
             port_scan_mode = [_psm]
-        else:
-            port_scan_mode = []
+        
         return Scope(
             org=data.get("org", ""),
             domains=data.get("domains", []),
@@ -58,6 +75,7 @@ class Scope:
             resolvers=data.get("resolvers", ["1.1.1.1", "8.8.8.8"]),
             seeds=data.get("seeds", {"hosts": []}),
             port_scan_mode=port_scan_mode,
+            port_scan_cookies=port_scan_cookies,
             dirbuster_wordlist=data.get("dirbuster_wordlist", ""),
         )
 
