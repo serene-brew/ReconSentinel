@@ -234,6 +234,57 @@ def run(
         resolvers = [r.strip() for r in resolvers_str.split(",") if r.strip()]
         passive = typer.confirm("Passive-only mode?", default=True)
 
+        # Port Scanner Configuration
+        console.print("\n[bold cyan]Port Scanner Configuration[/bold cyan]")
+        enable_port_scan = typer.confirm("Enable port scanning?", default=False)
+        port_scan_mode = []
+        port_scan_cookies = None
+        
+        if enable_port_scan:
+            port_mode_options = [
+                "default",
+                "stealthy",
+                "aggressive",
+                "comprehensive",
+                "udp",
+                "all_ports",
+                "os_detection",
+                "custom"
+            ]
+            console.print("Available modes: default, stealthy, aggressive, comprehensive, udp, all_ports, os_detection, custom")
+            port_mode = typer.prompt("Port scan mode", default="aggressive")
+            
+            # Validate mode
+            if port_mode not in port_mode_options:
+                console.print(f"[yellow]Warning: '{port_mode}' is not a recognized mode. Using 'default'.[/yellow]")
+                port_mode = "default"
+            
+            port_scan_mode.append(port_mode)
+            
+            # If custom mode, ask for flags
+            if port_mode == "custom":
+                custom_flags = typer.prompt("Custom nmap flags (e.g., '-T4 -A -sV')", default="-T4 -A")
+                if custom_flags:
+                    port_scan_mode.append(custom_flags)
+            
+            # Ask for cookies (optional)
+            enable_cookies = typer.confirm("Use cookies for port scanning?", default=False)
+            if enable_cookies:
+                cookies_str = typer.prompt("Cookies (comma or space separated, e.g., '123456789' or 'session_id=abc123')", default="")
+                if cookies_str:
+                    cookies_list = [c.strip() for c in re.split(r"[,\s]+", cookies_str) if c.strip()]
+                    if cookies_list:
+                        port_scan_cookies = cookies_list
+
+        # DirBuster Configuration
+        console.print("\n[bold cyan]DirBuster Configuration[/bold cyan]")
+        enable_dirbuster = typer.confirm("Enable DirBuster scanning?", default=False)
+        dirbuster_wordlist = ""
+        if enable_dirbuster:
+            wordlist_path = typer.prompt("Wordlist file path", default="dir-buster/wordlists/example.txt")
+            if wordlist_path:
+                dirbuster_wordlist = wordlist_path
+
         scope_obj = Scope(
             org=org,
             domains=domains,
@@ -241,7 +292,27 @@ def run(
             notes=notes,
             resolvers=resolvers,
             seeds={"hosts": seeds_hosts},
+            port_scan_mode=port_scan_mode if enable_port_scan else [],
+            port_scan_cookies=port_scan_cookies,
+            dirbuster_wordlist=dirbuster_wordlist,
         )
+        
+        # Show configuration summary
+        console.print("\n[bold green]Configuration Summary:[/bold green]")
+        console.print(f"  Organization: {org}")
+        console.print(f"  Domains: {', '.join(domains)}")
+        console.print(f"  Passive mode: {passive}")
+        if enable_port_scan:
+            console.print(f"  Port scanning: Enabled ({port_scan_mode[0] if port_scan_mode else 'N/A'})")
+            if port_scan_cookies:
+                console.print(f"  Port scan cookies: {', '.join(port_scan_cookies)}")
+        else:
+            console.print("  Port scanning: Disabled")
+        if enable_dirbuster and dirbuster_wordlist:
+            console.print(f"  DirBuster: Enabled (wordlist: {dirbuster_wordlist})")
+        else:
+            console.print("  DirBuster: Disabled")
+        console.print("")
     else:
         if scope is None:
             typer.echo("Provide --scope PATH or use --interactive (-i) to build one.")
@@ -356,29 +427,44 @@ def run(
         from .modules.librpscan import RpscanClient
         from dataclasses import asdict
         port_mode = scope_obj.port_scan_mode[0] if isinstance(scope_obj.port_scan_mode, list) and len(scope_obj.port_scan_mode) > 0 else ''
-        port_flags = scope_obj.port_scan_mode[1] if isinstance(scope_obj.port_scan_mode, list) and len(scope_obj.port_scan_mode) > 1 else None
+        port_flags = scope_obj.port_scan_mode[1] if isinstance(scope_obj.port_scan_mode, list) and len(scope_obj.port_scan_mode) > 1 and isinstance(scope_obj.port_scan_mode[1], str) else None
+        # Extract cookies from scope if available
+        port_cookies = None
+        if hasattr(scope_obj, 'port_scan_cookies') and scope_obj.port_scan_cookies:
+            # Format cookies: if a cookie doesn't contain "=", format it as "cookie=value"
+            formatted_cookies = []
+            for cookie in scope_obj.port_scan_cookies:
+                if "=" in cookie:
+                    formatted_cookies.append(cookie)
+                else:
+                    # If it's just a value, format it as "cookie=value"
+                    formatted_cookies.append(f"cookie={cookie}")
+            # Join cookies with semicolons for nmap
+            port_cookies = "; ".join(formatted_cookies)
         portscan_client = RpscanClient()
         console.print("[bold][cyan]Launching port scanning as per scope.yaml...[/cyan][/bold]")
+        if port_cookies:
+            console.print(f"[dim]Using cookies: {port_cookies}[/dim]")
         # Only scan the base domains from scope.yaml, not discovered subdomains
         for domain in scope_obj.domains:
             try:
                 console.print(f"\n[bold]Scanning {domain}...[/bold]")
                 if port_mode == 'stealthy':
-                    result = portscan_client.scan_stealthy(domain)
+                    result = portscan_client.scan_stealthy(domain, port_cookies)
                 elif port_mode == 'aggressive':
-                    result = portscan_client.scan_aggressive(domain)
+                    result = portscan_client.scan_aggressive(domain, port_cookies)
                 elif port_mode == 'comprehensive':
-                    result = portscan_client.scan_comprehensive(domain)
+                    result = portscan_client.scan_comprehensive(domain, port_cookies)
                 elif port_mode == 'udp':
-                    result = portscan_client.scan_udp(domain)
+                    result = portscan_client.scan_udp(domain, port_cookies)
                 elif port_mode == 'all_ports':
-                    result = portscan_client.scan_all_ports(domain)
+                    result = portscan_client.scan_all_ports(domain, port_cookies)
                 elif port_mode == 'os_detection':
-                    result = portscan_client.scan_os_detection(domain)
+                    result = portscan_client.scan_os_detection(domain, port_cookies)
                 elif port_mode == 'custom' and port_flags:
-                    result = portscan_client.scan_custom(domain, port_flags)
+                    result = portscan_client.scan_custom(domain, port_flags, port_cookies)
                 else:
-                    result = portscan_client.scan(domain)
+                    result = portscan_client.scan(domain, port_cookies)
 
                 # Print structured output to terminal
                 portscan_client.print_result(result, f"Port Scan: {domain}")
