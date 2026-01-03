@@ -26,59 +26,67 @@ typedef void *ScanResult;
 /**
  * Default scan: Service version detection on top 1000 ports
  * @param target Target host or network address
+ * @param cookies Optional cookies string (NULL for no cookies, e.g., "cookie1; cookie2")
  * @return Opaque ScanResult pointer
  */
-ScanResult scan_target(const char *target);
+ScanResult scan_target(const char *target, const char *cookies);
 
 /**
  * Stealthy scan: Slow SYN stealth scan on 100 ports (T1)
  * @param target Target host or network address
+ * @param cookies Optional cookies string (NULL for no cookies, e.g., "cookie1; cookie2")
  * @return Opaque ScanResult pointer
  */
-ScanResult scan_target_stealthy(const char *target);
+ScanResult scan_target_stealthy(const char *target, const char *cookies);
 
 /**
  * Aggressive scan: Fast OS detection with NSE scripts (T4 -A)
  * @param target Target host or network address
+ * @param cookies Optional cookies string (NULL for no cookies, e.g., "cookie1; cookie2")
  * @return Opaque ScanResult pointer
  */
-ScanResult scan_target_aggressive(const char *target);
+ScanResult scan_target_aggressive(const char *target, const char *cookies);
 
 /**
  * Comprehensive scan: Version detection with scripts on 10k ports
  * @param target Target host or network address
+ * @param cookies Optional cookies string (NULL for no cookies, e.g., "cookie1; cookie2")
  * @return Opaque ScanResult pointer
  */
-ScanResult scan_target_comprehensive(const char *target);
+ScanResult scan_target_comprehensive(const char *target, const char *cookies);
 
 /**
  * UDP scan: UDP protocol detection on common ports
  * @param target Target host or network address
+ * @param cookies Optional cookies string (NULL for no cookies, e.g., "cookie1; cookie2")
  * @return Opaque ScanResult pointer
  */
-ScanResult scan_target_udp(const char *target);
+ScanResult scan_target_udp(const char *target, const char *cookies);
 
 /**
  * All ports scan: Full TCP port range (WARNING: slow)
  * @param target Target host or network address
+ * @param cookies Optional cookies string (NULL for no cookies, e.g., "cookie1; cookie2")
  * @return Opaque ScanResult pointer
  */
-ScanResult scan_target_all_ports(const char *target);
+ScanResult scan_target_all_ports(const char *target, const char *cookies);
 
 /**
  * OS detection scan: Operating system fingerprinting
  * @param target Target host or network address
+ * @param cookies Optional cookies string (NULL for no cookies, e.g., "cookie1; cookie2")
  * @return Opaque ScanResult pointer
  */
-ScanResult scan_target_os_detection(const char *target);
+ScanResult scan_target_os_detection(const char *target, const char *cookies);
 
 /**
  * Custom scan: Use your own nmap flags
  * @param target Target host or network address
  * @param flags Custom nmap flags (e.g., "-T4 -A -sV")
+ * @param cookies Optional cookies string (NULL for no cookies, e.g., "cookie1; cookie2")
  * @return Opaque ScanResult pointer
  */
-ScanResult scan_target_custom(const char *target, const char *flags);
+ScanResult scan_target_custom(const char *target, const char *flags, const char *cookies);
 
 /** @} */
 
