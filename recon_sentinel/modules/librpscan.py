@@ -141,16 +141,16 @@ class RpscanClient:
         # Define ScanResult as opaque pointer
         ScanResultType = c_void_p
 
-        # Setup all scan functions
+        # Setup all scan functions (now with optional cookies parameter)
         functions = [
-            ("scan_target", [c_char_p], ScanResultType),
-            ("scan_target_stealthy", [c_char_p], ScanResultType),
-            ("scan_target_aggressive", [c_char_p], ScanResultType),
-            ("scan_target_comprehensive", [c_char_p], ScanResultType),
-            ("scan_target_udp", [c_char_p], ScanResultType),
-            ("scan_target_all_ports", [c_char_p], ScanResultType),
-            ("scan_target_os_detection", [c_char_p], ScanResultType),
-            ("scan_target_custom", [c_char_p, c_char_p], ScanResultType),
+            ("scan_target", [c_char_p, c_char_p], ScanResultType),
+            ("scan_target_stealthy", [c_char_p, c_char_p], ScanResultType),
+            ("scan_target_aggressive", [c_char_p, c_char_p], ScanResultType),
+            ("scan_target_comprehensive", [c_char_p, c_char_p], ScanResultType),
+            ("scan_target_udp", [c_char_p, c_char_p], ScanResultType),
+            ("scan_target_all_ports", [c_char_p, c_char_p], ScanResultType),
+            ("scan_target_os_detection", [c_char_p, c_char_p], ScanResultType),
+            ("scan_target_custom", [c_char_p, c_char_p, c_char_p], ScanResultType),
         ]
 
         for func_name, argtypes, restype in functions:
@@ -343,19 +343,21 @@ class RpscanClient:
             port_details=port_details,
         )
 
-    def _execute_scan(self, target: str, scan_func_name: str) -> ScanResult:
+    def _execute_scan(self, target: str, scan_func_name: str, cookies: Optional[str] = None) -> ScanResult:
         """
         Execute a scan and return parsed result.
         
         Args:
             target: Target hostname or IP address
             scan_func_name: Name of the scan function to call
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
         """
         scan_func = getattr(self.lib, scan_func_name)
-        c_result = scan_func(target.encode())
+        cookies_ptr = cookies.encode() if cookies else None
+        c_result = scan_func(target.encode(), cookies_ptr)
         
         try:
             result = self._parse_result(c_result)
@@ -364,19 +366,20 @@ class RpscanClient:
 
         return result
 
-    def scan(self, target: str) -> ScanResult:
+    def scan(self, target: str, cookies: Optional[str] = None) -> ScanResult:
         """
         Default scan: service version detection on top 1000 ports.
         
         Args:
             target: Target hostname or IP address
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
         """
-        return self._execute_scan(target, "scan_target")
+        return self._execute_scan(target, "scan_target", cookies)
 
-    def scan_stealthy(self, target: str) -> ScanResult:
+    def scan_stealthy(self, target: str, cookies: Optional[str] = None) -> ScanResult:
         """
         Stealthy scan: Slow (-T1), SYN stealth (-sS), minimal ports (top 100).
         
@@ -384,13 +387,14 @@ class RpscanClient:
         
         Args:
             target: Target hostname or IP address
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
         """
-        return self._execute_scan(target, "scan_target_stealthy")
+        return self._execute_scan(target, "scan_target_stealthy", cookies)
 
-    def scan_aggressive(self, target: str) -> ScanResult:
+    def scan_aggressive(self, target: str, cookies: Optional[str] = None) -> ScanResult:
         """
         Aggressive scan: Fast (-T4), OS detection, NSE scripts (-A).
         
@@ -399,13 +403,14 @@ class RpscanClient:
         
         Args:
             target: Target hostname or IP address
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
         """
-        return self._execute_scan(target, "scan_target_aggressive")
+        return self._execute_scan(target, "scan_target_aggressive", cookies)
 
-    def scan_comprehensive(self, target: str) -> ScanResult:
+    def scan_comprehensive(self, target: str, cookies: Optional[str] = None) -> ScanResult:
         """
         Comprehensive scan: Version detection, NSE scripts, top 10000 ports.
         
@@ -413,13 +418,14 @@ class RpscanClient:
         
         Args:
             target: Target hostname or IP address
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
         """
-        return self._execute_scan(target, "scan_target_comprehensive")
+        return self._execute_scan(target, "scan_target_comprehensive", cookies)
 
-    def scan_udp(self, target: str) -> ScanResult:
+    def scan_udp(self, target: str, cookies: Optional[str] = None) -> ScanResult:
         """
         UDP scan: Detects UDP services on top 1000 UDP ports.
         
@@ -427,13 +433,14 @@ class RpscanClient:
         
         Args:
             target: Target hostname or IP address
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
         """
-        return self._execute_scan(target, "scan_target_udp")
+        return self._execute_scan(target, "scan_target_udp", cookies)
 
-    def scan_all_ports(self, target: str) -> ScanResult:
+    def scan_all_ports(self, target: str, cookies: Optional[str] = None) -> ScanResult:
         """
         All ports scan: Scans all 65535 TCP ports.
         
@@ -441,13 +448,14 @@ class RpscanClient:
         
         Args:
             target: Target hostname or IP address
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
         """
-        return self._execute_scan(target, "scan_target_all_ports")
+        return self._execute_scan(target, "scan_target_all_ports", cookies)
 
-    def scan_os_detection(self, target: str) -> ScanResult:
+    def scan_os_detection(self, target: str, cookies: Optional[str] = None) -> ScanResult:
         """
         OS detection scan: Operating system fingerprinting.
         
@@ -455,13 +463,14 @@ class RpscanClient:
         
         Args:
             target: Target hostname or IP address
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
         """
-        return self._execute_scan(target, "scan_target_os_detection")
+        return self._execute_scan(target, "scan_target_os_detection", cookies)
 
-    def scan_custom(self, target: str, flags: str) -> ScanResult:
+    def scan_custom(self, target: str, flags: str, cookies: Optional[str] = None) -> ScanResult:
         """
         Custom scan with user-provided nmap flags.
         
@@ -471,6 +480,7 @@ class RpscanClient:
             target: Target hostname or IP address
             flags: Custom nmap flags (e.g., "-T4 -A -sV --script vuln")
                   See nmap documentation for available options
+            cookies: Optional cookies string (e.g., "cookie1; cookie2")
             
         Returns:
             ScanResult object
@@ -488,7 +498,8 @@ class RpscanClient:
             >>> result = client.scan_custom("example.com", "-T1 -sS -sV --top-ports 100")
         """
         scan_func = self.lib.scan_target_custom
-        c_result = scan_func(target.encode(), flags.encode())
+        cookies_ptr = cookies.encode() if cookies else None
+        c_result = scan_func(target.encode(), flags.encode(), cookies_ptr)
         
         try:
             result = self._parse_result(c_result)
