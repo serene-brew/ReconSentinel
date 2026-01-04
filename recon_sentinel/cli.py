@@ -336,7 +336,7 @@ def run(
     console.print("[dim yellow]Licensed to Serene-Brew[/dim yellow]")
     console.print("")
     console.print("")
-    console.rule("ReconSentinel v0 — Passive run")
+    console.rule("Passive Reconnaissance")
     console.print(f"[bold]Org:[/] {scope_obj.org}")
     console.print(f"[bold]Domains:[/] {', '.join(scope_obj.domains)}\n")
 
