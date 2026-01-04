@@ -29,31 +29,77 @@ from .utils import write_json, read_json
 
 console = Console()
 
-APP_HELP = """\
-Usage: recon <command> [options]
 
-Display information about reconnaissance results and run passive recon scans.
+def _print_help():
+    """Print simple help menu."""
+    help_text = """Usage: recon <command> [options]
 
 Commands:
-  run     Run passive recon against the defined scope.
-  diff    Diff two runs to see what's new/removed.
+  run     Run passive recon against the defined scope
+  diff    Diff two runs to see what's new/removed
 
-Run Options:
-  --scope PATH          Path to scope.yaml (or use -i/--interactive to enter values).
-  --out PATH            Output directory base (default: runs).
-  --tag STRING          Optional run tag, appended to run folder name.
-  -i, --interactive     Prompt for scope values (org, domains, seeds, resolvers).
-  -v, --verbose         Show detailed progress messages (spinner + periodic counters).
-  --dns-fast            Query only A/AAAA records for faster results.
-  --skip-internal       Skip internal-looking hosts (e.g., *.corp.*, .internal, .local, .lan).
-  --dns-workers N       Parallel DNS worker threads (e.g., 10–50). Default 0/1 = serial.
-  --skip-port-scan      Skip the port scanning phase even if port_scan_mode is configured.
+Run Command Options:
+  --scope PATH          Path to scope.yaml (or use -i/--interactive)
+  --out PATH            Output directory base (default: runs)
+  --tag STRING          Optional run tag, appended to run folder name
+  -i, --interactive     Prompt for scope values interactively
+  -v, --verbose         Show detailed progress messages
+  --dns-fast            Query only A/AAAA records for faster results
+  --skip-internal       Skip internal-looking hosts
+  --dns-workers N       Parallel DNS worker threads (default: 0/1 = serial)
+  --skip-port-scan      Skip port scanning phase even if configured
 
-Diff Options:
-  --a PATH              Path to older run dir.
-  --b PATH              Path to newer run dir.
-  --out PATH            Output markdown path (default: diff.md).
+Diff Command Options:
+  --a PATH              Path to older run dir (required)
+  --b PATH              Path to newer run dir (required)
+  --out PATH            Output markdown path (default: diff.md)
+
+Global Options:
+  --version             Show version information
+  -h, --help            Show this help message
+
+Examples:
+  recon run -i
+  recon run --scope scope.yaml --out runs
+  recon diff --a runs/run-20250101-000000Z --b runs/run-20250102-000000Z
 """
+    print(help_text)
+
+
+def _print_run_help():
+    """Print help for run command."""
+    help_text = """Usage: recon run [OPTIONS]
+
+Run passive recon against the defined scope.
+
+Options:
+  --scope PATH          Path to scope.yaml (or use -i/--interactive)
+  --out PATH            Output directory base (default: runs)
+  --tag STRING          Optional run tag, appended to run folder name
+  -i, --interactive     Prompt for scope values interactively
+  -v, --verbose         Show detailed progress messages
+  --dns-fast            Query only A/AAAA records for faster results
+  --skip-internal       Skip internal-looking hosts
+  --dns-workers INTEGER Parallel DNS worker threads (default: 0/1 = serial)
+  --skip-port-scan      Skip port scanning phase even if configured
+  -h, --help            Show this help message
+"""
+    print(help_text)
+
+
+def _print_diff_help():
+    """Print help for diff command."""
+    help_text = """Usage: recon diff [OPTIONS]
+
+Diff two runs to see what's new/removed.
+
+Options:
+  --a PATH    Path to older run dir (required)
+  --b PATH    Path to newer run dir (required)
+  --out PATH  Output markdown path (default: diff.md)
+  -h, --help  Show this help message
+"""
+    print(help_text)
 
 def _stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
@@ -159,10 +205,11 @@ def _normalize_url(value: str) -> str:
     return f"http://{value}"
 
 
+# Create the Typer app
 app = typer.Typer(
-    help=APP_HELP,
+    name="recon",
     add_completion=False,
-    no_args_is_help=True,
+    no_args_is_help=False,  # We handle help manually
     rich_markup_mode=None,
 )
 
@@ -172,48 +219,83 @@ def _print_version():
     if version_file.exists():
         print(version_file.read_text(encoding="utf-8").strip())
     else:
-        print("VERSION file not found")
+        print("""
+TOOL:    ReconSentinel
+VERSION: v1.0.0
+LICENSE: BSD-3-CLAUSE
+AUTHOR:  Serene-Brew Org. and Members
+SOURCE:  https://github.com/serene-brew/ReconSentinel
+
+Copyright (c) 2025, knightsky-cpu
+Licensed to Serene-Brew
+https://github.com/serene-brew
+serene.brew.git@gmail.com
+        """)
 
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
-    version: bool = typer.Option(False, "--version", "-v", help="Show version information and exit."),
+    version: bool = typer.Option(False, "--version", help="Show version information and exit."),
 ):
-    """Main callback - help is handled in main() before Typer processes it."""
+    """Main callback."""
     if version:
         _print_version()
         raise typer.Exit()
 
 
-@app.command(help="Run passive recon against the defined scope.")
+@app.command(no_args_is_help=False)
 def run(
     scope: Optional[Path] = typer.Option(
         None,
+        "--scope",
         exists=False,
         readable=False,
         help="Path to scope.yaml (or use -i/--interactive to enter values).",
     ),
-    out: Path = typer.Option(Path("runs"), help="Output directory base."),
-    tag: str = typer.Option("", help="Optional run tag, appended to run folder name."),
+    out: Path = typer.Option(
+        Path("runs"),
+        "--out",
+        help="Output directory base.",
+    ),
+    tag: str = typer.Option(
+        "",
+        "--tag",
+        help="Optional run tag, appended to run folder name.",
+    ),
     interactive: bool = typer.Option(
-        False, "--interactive", "-i", help="Prompt for scope values (org, domains, seeds, resolvers)."
+        False,
+        "--interactive",
+        "-i",
+        help="Prompt for scope values (org, domains, seeds, resolvers).",
     ),
     verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show detailed progress messages (spinner + periodic counters)."
+        False,
+        "--verbose",
+        "-v",
+        help="Show detailed progress messages (spinner + periodic counters).",
     ),
     dns_fast: bool = typer.Option(
-        False, "--dns-fast", help="(Opt-in) Query only A/AAAA records for faster results."
+        False,
+        "--dns-fast",
+        help="(Opt-in) Query only A/AAAA records for faster results.",
     ),
     skip_internal: bool = typer.Option(
-        False, "--skip-internal", help="(Opt-in) Skip internal-looking hosts (e.g., *.corp.*, .internal, .local, .lan)."
+        False,
+        "--skip-internal",
+        help="(Opt-in) Skip internal-looking hosts (e.g., *.corp.*, .internal, .local, .lan).",
     ),
     dns_workers: int = typer.Option(
-        0, "--dns-workers", help="(Opt-in) Parallel DNS worker threads (e.g., 10–50). Default 0/1 = serial."
+        0,
+        "--dns-workers",
+        help="(Opt-in) Parallel DNS worker threads (e.g., 10–50). Default 0/1 = serial.",
     ),
     skip_port_scan: bool = typer.Option(
-        False, "--skip-port-scan", help="Skip the port scanning phase even if port_scan_mode is configured."
+        False,
+        "--skip-port-scan",
+        help="Skip the port scanning phase even if port_scan_mode is configured.",
     ),
 ):
+    """Run passive recon against the defined scope."""
     _setup_logging(verbose)
 
     # Build Scope from prompts if interactive; otherwise load from YAML path.
@@ -610,12 +692,27 @@ def run(
         console.print(f"[bold]Δ:[/] first run — no prior data")
 
 
-@app.command(help="Diff two runs to see what's new/removed.")
+@app.command(no_args_is_help=False)
 def diff(
-    a: Path = typer.Option(..., exists=True, help="Path to older run dir."),
-    b: Path = typer.Option(..., exists=True, help="Path to newer run dir."),
-    out: Path = typer.Option(Path("diff.md"), help="Output markdown path."),
+    a: Path = typer.Option(
+        ...,
+        "--a",
+        exists=True,
+        help="Path to older run dir.",
+    ),
+    b: Path = typer.Option(
+        ...,
+        "--b",
+        exists=True,
+        help="Path to newer run dir.",
+    ),
+    out: Path = typer.Option(
+        Path("diff.md"),
+        "--out",
+        help="Output markdown path.",
+    ),
 ):
+    """Diff two runs to see what's new/removed."""
     hosts_a = set(read_json(a / "artifacts" / "inventory_hosts.json"))
     hosts_b = set(read_json(b / "artifacts" / "inventory_hosts.json"))
     new = sorted(list(hosts_b - hosts_a))
@@ -636,78 +733,58 @@ def diff(
     console.print(f"[green]✔[/] Wrote diff → {out}")
 
 
-if __name__ == "__main__":
-    # Intercept version requests
-    # -v only works at global level (single arg) to avoid conflict with command -v flags
-    # --version works anywhere
-    has_version_flag = "--version" in sys.argv or (len(sys.argv) == 2 and sys.argv[1] == "-v")
-    
-    if has_version_flag:
-        version_file = Path(__file__).parent.parent / "VERSION"
-        if version_file.exists():
-            print(version_file.read_text(encoding="utf-8").strip())
-        else:
-            print("VERSION file not found")
+def _handle_help_and_version():
+    """Intercept help and version requests before Typer processes them."""
+    # Handle version
+    if "--version" in sys.argv:
+        _print_version()
         sys.exit(0)
     
-    # Intercept help requests to show plain text help (readelf style)
-    # Check for help flag anywhere in args
-    has_help_flag = "--help" in sys.argv or "-h" in sys.argv
-    
-    if has_help_flag:
-        # For main help (just --help or -h)
+    # Handle help requests manually for clean output
+    if "--help" in sys.argv or "-h" in sys.argv:
+        # Determine which help to show
         if len(sys.argv) == 2:
-            print(APP_HELP)
+            # Main help
+            _print_help()
             sys.exit(0)
-        # For command help (e.g., "run --help"), we need to format it manually
-        # Get the command name
-        cmd_name = None
-        for i, arg in enumerate(sys.argv):
-            if arg in ("--help", "-h") and i > 0:
-                cmd_name = sys.argv[i-1] if sys.argv[i-1] not in ("--help", "-h") else None
-                break
-        
-        if cmd_name:
-            # Build command-specific help manually
-            if cmd_name == "run":
-                print("""\
-Usage: recon run [OPTIONS]
-
-Run passive recon against the defined scope.
-
-Options:
-  --scope PATH          Path to scope.yaml (or use -i/--interactive to enter values).
-  --out PATH            Output directory base (default: runs).
-  --tag STRING          Optional run tag, appended to run folder name.
-  -i, --interactive     Prompt for scope values (org, domains, seeds, resolvers).
-  -v, --verbose         Show detailed progress messages (spinner + periodic counters).
-  --dns-fast            Query only A/AAAA records for faster results.
-  --skip-internal       Skip internal-looking hosts (e.g., *.corp.*, .internal, .local, .lan).
-  --dns-workers INTEGER Parallel DNS worker threads (e.g., 10–50). Default 0/1 = serial.
-  --skip-port-scan      Skip the port scanning phase even if port_scan_mode is configured.
-  -h, --help            Show this message and exit.
-""")
-            elif cmd_name == "diff":
-                print("""\
-Usage: recon diff [OPTIONS]
-
-Diff two runs to see what's new/removed.
-
-Options:
-  --a PATH    Path to older run dir.  [required]
-  --b PATH    Path to newer run dir.  [required]
-  --out PATH  Output markdown path (default: diff.md).
-  -h, --help  Show this message and exit.
-""")
+        else:
+            # Command-specific help
+            cmd_index = None
+            for i, arg in enumerate(sys.argv):
+                if arg in ("--help", "-h") and i > 0:
+                    cmd_index = i - 1
+                    break
+            
+            if cmd_index is not None and cmd_index < len(sys.argv):
+                cmd = sys.argv[cmd_index]
+                if cmd == "run":
+                    _print_run_help()
+                elif cmd == "diff":
+                    _print_diff_help()
+                else:
+                    _print_help()
             else:
-                # Unknown command, show main help
-                print(APP_HELP)
+                _print_help()
             sys.exit(0)
     
-    # No args - show help (no_args_is_help=True)
+    # Handle no arguments
     if len(sys.argv) == 1:
-        print(APP_HELP)
+        _print_help()
         sys.exit(0)
+
+
+def _app_wrapper():
+    """Wrapper that intercepts help/version before calling Typer app.
     
+    This is used as the entry point when installed via pip.
+    """
+    _handle_help_and_version()
+    app()
+
+
+if __name__ == "__main__":
+    # Handle help/version requests manually for clean output
+    _handle_help_and_version()
+    # Run the app (only reached if help/version weren't requested)
     app()
 
