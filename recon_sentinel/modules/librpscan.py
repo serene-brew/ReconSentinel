@@ -23,6 +23,13 @@ import os
 from ctypes import CDLL, c_void_p, c_char_p, c_int
 from dataclasses import dataclass
 from typing import List, Optional
+from pathlib import Path
+
+try:
+    from importlib.resources import files
+except ImportError:
+    # Python < 3.9 fallback
+    from importlib_resources import files
 
 from rich.console import Console
 from rich.table import Table
@@ -116,24 +123,49 @@ class RpscanClient:
         """
         Search for librpscan.so in common locations.
         
+        First tries installed package location, then falls back to development paths.
+        
         Returns:
             Path to the found library
             
         Raises:
             OSError: If library not found in any search path
         """
+        # Try installed package location first
+        try:
+            lib_resource = files("recon_sentinel.libs") / "librpscan.so"
+            # Check if the resource exists (works for both Path and Traversable)
+            try:
+                # Try as_path() for Traversable objects
+                lib_path = lib_resource.as_path()
+                if lib_path.is_file():
+                    return str(lib_path)
+            except (AttributeError, TypeError):
+                # Fall back to string conversion and file check
+                lib_path_str = str(lib_resource)
+                if os.path.isfile(lib_path_str):
+                    return lib_path_str
+        except (ImportError, ModuleNotFoundError, TypeError):
+            # importlib.resources might not work in all cases, fall through
+            pass
+        except Exception:
+            # Other errors, fall through
+            pass
+        
+        # Fallback to development paths
         for path in RpscanClient.DEFAULT_SEARCH_PATHS:
             expanded_path = os.path.expanduser(path)
             if os.path.isfile(expanded_path):
                 return expanded_path
         
         # If not found, raise detailed error
+        all_paths = ["recon_sentinel/libs/librpscan.so (installed package)"] + RpscanClient.DEFAULT_SEARCH_PATHS
         raise OSError(
             f"librpscan.so not found in any of the following locations:\n"
-            + "\n".join(f"  - {p}" for p in RpscanClient.DEFAULT_SEARCH_PATHS)
+            + "\n".join(f"  - {p}" for p in all_paths)
             + "\n\nPlease build the project with:\n"
-            + "  mkdir build && cd build && cmake -G Ninja .. && ninja\n"
-            + "  cp lib/librpscan.so .."
+            + "  cd port-scanner && mkdir -p build && cd build && cmake .. && make\n"
+            + "  Or install the package: pip install reconsentinel"
         )
 
     def _setup_ctypes(self) -> None:
