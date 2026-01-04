@@ -35,6 +35,65 @@ activate_venv() {
   source "$VENV_DIR/bin/activate"
 }
 
+check_and_install_tinyxml2() {
+  # Check if libtinyxml2 libraries exist in /usr/lib and copy if missing
+  local libs_dir="$PROJECT_ROOT/recon_sentinel/libs"
+  local usr_lib="/usr/lib"
+  local missing_libs=()
+  
+  # Check which libraries are missing
+  if [[ ! -f "$usr_lib/libtinyxml2.so" ]]; then
+    missing_libs+=("libtinyxml2.so")
+  fi
+  if [[ ! -f "$usr_lib/libtinyxml2.so.11" ]]; then
+    missing_libs+=("libtinyxml2.so.11")
+  fi
+  if [[ ! -f "$usr_lib/libtinyxml2.so.11.0.0" ]]; then
+    missing_libs+=("libtinyxml2.so.11.0.0")
+  fi
+  
+  # If any libraries are missing, copy them
+  if [[ ${#missing_libs[@]} -gt 0 ]]; then
+    echo "ℹ Some libtinyxml2 libraries are missing in $usr_lib"
+    echo "  Missing: ${missing_libs[*]}"
+    
+    # Check if source files exist
+    local all_exist=true
+    for lib in "${missing_libs[@]}"; do
+      if [[ ! -f "$libs_dir/$lib" ]]; then
+        echo "Warning: $lib not found in $libs_dir, skipping..."
+        all_exist=false
+      fi
+    done
+    
+    if [[ "$all_exist" == true ]]; then
+      echo "  Copying libraries to $usr_lib (requires sudo)..."
+      local copy_success=true
+      for lib in "${missing_libs[@]}"; do
+        if sudo cp "$libs_dir/$lib" "$usr_lib/" 2>/dev/null; then
+          echo "  Copied $lib"
+        else
+          echo "  Failed to copy $lib (may need sudo permissions)"
+          copy_success=false
+        fi
+      done
+      
+      if [[ "$copy_success" == true ]]; then
+        # Update library cache if ldconfig exists
+        if command -v ldconfig >/dev/null 2>&1; then
+          echo "  Updating library cache..."
+          sudo ldconfig 2>/dev/null || true
+        fi
+        echo "  libtinyxml2 libraries installed"
+      else
+        echo "  Some libraries could not be copied (continuing anyway...)"
+      fi
+    else
+      echo "  Some libraries could not be copied (continuing anyway...)"
+    fi
+  fi
+}
+
 doctor() {
   echo "🔎 ReconSentinel doctor"
   command -v python3 >/dev/null || { echo "❌ python3 not found"; exit 1; }
@@ -60,6 +119,9 @@ main() {
     doctor
     exit 0
   fi
+
+  # Check and install libtinyxml2 if needed
+  check_and_install_tinyxml2
 
   ensure_venv
   activate_venv
