@@ -1,6 +1,6 @@
 # Recon Sentinel
 
-> Security reconnaissance toolkit (v0.1).
+> Security reconnaissance toolkit (1.0.0).
 > 
 
 ## Features (v1.0.0)
@@ -67,11 +67,10 @@ resolvers:
   - 1.1.1.1
   - 8.8.8.8
 
-# Optional: Enable port scanning
 port_scan_mode:
   - custom  # or: default, aggresive, stealthy, comprehensive, udp, all_ports, os_detection
   - -A -T4
-  - cookies:
+  - cookies: # optional for authenticated scans
     - sessionid:abc123
 # Optional: Enable DirBuster
 dirbuster_wordlist: dir-buster/wordlists/example.txt
@@ -102,12 +101,10 @@ The port scanner uses `librpscan` (a C++ wrapper around nmap) to perform active 
 ```yaml
 port_scan_mode:
   - aggressive  # or: default, stealthy, comprehensive, udp, all_ports, os_detection, custom
-  # Optional: custom flags for "custom" mode (as second element)
-  # - "-T4 -A -sV"
   # Optional: cookies for authenticated scans (as second element with cookies key)
-  # - cookies:
-  #     - "session_id=abc123"
-  #     - "auth_token=xyz789"
+  - cookies:
+    - "session_id=abc123"
+    - "auth_token=xyz789"
 ```
 
 **Available scan modes:**
