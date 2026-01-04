@@ -49,7 +49,7 @@ exclude = ["fixtures*"]
 
 # Include non-Python files we need at runtime
 [tool.setuptools.package-data]
-"recon_sentinel" = ["templates/*.j2", "rules/*.yaml", "libs/*.so"]
+"recon_sentinel" = ["templates/*.j2", "rules/*.yaml", "libs/*.so", "libs/*.so.11", "libs/*.so.11.0.0"]
 
 [project.scripts]
 recon = "recon_sentinel.cli:_app_wrapper"

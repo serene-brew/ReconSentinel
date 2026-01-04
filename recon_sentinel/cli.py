@@ -7,6 +7,8 @@ from __future__ import annotations
 import logging
 import json
 import re
+import subprocess
+import shutil
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -28,6 +30,105 @@ from .rules_loader import load_rules
 from .utils import write_json, read_json
 
 console = Console()
+
+
+def _check_and_install_tinyxml2():
+    """Check if libtinyxml2 libraries exist in /usr/lib and copy if missing."""
+    usr_lib = Path("/usr/lib")
+    required_libs = ["libtinyxml2.so", "libtinyxml2.so.11", "libtinyxml2.so.11.0.0"]
+    missing_libs = []
+    
+    # Check which libraries are missing
+    for lib in required_libs:
+        if not (usr_lib / lib).exists():
+            missing_libs.append(lib)
+    
+    # If any libraries are missing, try to copy them
+    if missing_libs:
+        # Find the package libs directory - try multiple methods
+        libs_path = None
+        
+        # Method 1: Try importlib.resources (for installed package)
+        try:
+            from importlib.resources import files
+            libs_resource = files("recon_sentinel.libs")
+            try:
+                libs_path = Path(str(libs_resource.as_path()))
+            except (AttributeError, TypeError):
+                # Try string conversion
+                libs_str = str(libs_resource)
+                if Path(libs_str).exists():
+                    libs_path = Path(libs_str)
+        except (ImportError, ModuleNotFoundError, Exception):
+            pass
+        
+        # Method 2: Try relative to this file (for installed package)
+        if libs_path is None or not libs_path.exists():
+            libs_path = Path(__file__).parent / "libs"
+        
+        # Method 3: Try development path
+        if libs_path is None or not libs_path.exists():
+            libs_path = Path(__file__).parent.parent / "recon_sentinel" / "libs"
+        
+        print(f"\nSome libtinyxml2 libraries are missing in {usr_lib}")
+        print(f"  Missing: {', '.join(missing_libs)}")
+        
+        # Check if source files exist
+        all_exist = True
+        for lib in missing_libs:
+            if not (libs_path / lib).exists():
+                print(f"Warning: {lib} not found in {libs_path}, skipping...")
+                all_exist = False
+        
+        if all_exist:
+            print(f"  Copying libraries to {usr_lib} (requires sudo)...")
+            copy_success = True
+            
+            for lib in missing_libs:
+                source = libs_path / lib
+                dest = usr_lib / lib
+                
+                try:
+                    # Use sudo to copy - don't capture output to allow password prompt
+                    # Use None for stdin/stdout/stderr to inherit from parent (allows password prompt)
+                    result = subprocess.run(
+                        ["sudo", "cp", str(source), str(dest)],
+                        stdin=None,  # Inherit stdin (allows password prompt)
+                        stdout=None,  # Inherit stdout
+                        stderr=None,  # Inherit stderr
+                        timeout=120  # Longer timeout for password entry
+                    )
+                    if result.returncode == 0:
+                        print(f"  Copied {lib}")
+                    else:
+                        print(f"  Failed to copy {lib} (exit code: {result.returncode})")
+                        copy_success = False
+                except subprocess.TimeoutExpired:
+                    print(f"  Timeout while copying {lib} (password prompt may have timed out)")
+                    copy_success = False
+                except (FileNotFoundError, PermissionError) as e:
+                    print(f"  Failed to copy {lib}: {e}")
+                    copy_success = False
+            
+            if copy_success:
+                # Update library cache if ldconfig exists
+                if shutil.which("ldconfig"):
+                    print("  Updating library cache...")
+                    try:
+                        subprocess.run(
+                            ["sudo", "ldconfig"],
+                            stdin=None,  # Inherit stdin
+                            stdout=None,  # Inherit stdout
+                            stderr=None,  # Inherit stderr
+                            timeout=30
+                        )
+                    except (subprocess.TimeoutExpired, FileNotFoundError):
+                        pass
+                print("  libtinyxml2 libraries installed\n")
+            else:
+                print("  Some libraries could not be copied (continuing anyway...)\n")
+        else:
+            print("  Some libraries could not be copied (continuing anyway...)\n")
 
 
 def _print_help():
@@ -778,6 +879,12 @@ def _app_wrapper():
     
     This is used as the entry point when installed via pip.
     """
+    # Check and install libtinyxml2 if needed (skip for help/version commands)
+    is_help_or_version = "--help" in sys.argv or "-h" in sys.argv or "--version" in sys.argv
+    
+    if not is_help_or_version:
+        _check_and_install_tinyxml2()
+    
     _handle_help_and_version()
     app()
 
