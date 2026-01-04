@@ -1,9 +1,21 @@
+<div align=center>
+  
 # Recon Sentinel
+## v1.0.0
+</div>
+<div align=center>
+  
+[![Status](https://img.shields.io/badge/status-active-brightgreen.svg)](https://github.com/serene-brew/ReconSentinel)
+[![stars](https://img.shields.io/github/stars/serene-brew/ReconSentinel?style=social)](https://github.com/serene-brew/ReconSentinel/stargazers)
+[![forks](https://img.shields.io/github/forks/serene-brew/ReconSentinel?style=social)](https://github.com/serene-brew/ReconSentinel/network/members)
+[![Issues](https://img.shields.io/github/issues/serene-brew/ReconSentinel.svg?style=social&logo=github)](https://github.com/serene-brew/ReconSentinel/issues)
+[![Python](https://img.shields.io/badge/Python-3.13-yellow.svg)](https://python.org)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+</div>
 
-> Security reconnaissance toolkit (1.0.0).
-> 
+#### *<div align="right"><sub>// Contributed by the Serene-Brew Team<br>Special thanks to knightsky-cpu</sub></div>*
 
-## Features (v1.0.0)
+## Features
 - **Scope guard**: refuses out-of-scope targets.
 - **Passive modules**: CT logs (crt.sh), DNS (A/AAAA/CNAME/MX/TXT/NS) lookups.
 - **Port scanning**: Active port scanning using nmap with multiple scan modes (default, stealthy, aggressive, comprehensive, UDP, all ports, OS detection, custom).
@@ -12,19 +24,34 @@
 - **Evidence pack**: JSON artifacts + Markdown report.
 - **Changefeed**: simple diff between runs.
 
+>[!IMPORTANT]
+> ## Disclaimer
+>This project is a **passive-first and active reconnaissance helper** intended for **lawful security testing, research, and education**.
+> - **Authorized use only.** Run this tool **only** against systems/domains you own or where you have **explicit written permission** from the owner.
+> - **You are responsible for your use.** Misuse may violate laws (e.g., computer misuse / anti-hacking statutes), contracts, or company policies.
+> - **No warranty.** This software is provided **“AS IS”** under the MIT License, **without warranties** of any kind. The maintainers and contributors are **not liable** for misuse, data loss, or damage resulting from use
+> of this software.
+> - **Compliance.** You agree to comply with all applicable laws, regulations, and organizational policies. Consult your legal counsel for guidance—this is **not legal advice**.
+> - **Safety defaults.** v0 is **passive-only by default** (CT + DNS). Active scanning features (port scanning, DirBuster) are **opt-in** and must be explicitly configured in `scope.yaml`; you must confirm authorization
+> before enabling them.
+> - **Evidence handling.** Artifacts are stored locally by default. You are responsible for protecting any collected data and removing it when no longer authorized.
+> By using this project, you acknowledge and agree to the above.
+>
+> **Read the full [DISCLAIMER & Acceptable Use](./DISCLAIMER.md).**
+
 ## Quickstart
 ```bash
 # 1) Install
 pip install reconsentinel
-# 2) Run (passive-only by default)
-recon run --scope scope.yaml --out runs
+# 2) Execute interative run mode 
+recon run -i
 # 3) Open your casefile
 ls runs/*/casefile.md
 ```
 
-## Smoke Test (v1.0.0)
+## Smoke Test
 
-Run this to confirm the tool installs and produces a casefile.
+Run this to confirm the tool produces a casefile.
 
 ```bash
 pip install reconsentinel
@@ -96,7 +123,7 @@ ReconSentinel includes two active scanning modules that can be enabled via confi
 
 ### Port Scanner
 
-The port scanner uses `librpscan` (a C++ wrapper around nmap) to perform active port scanning. Configure it in your `scope.yaml`:
+The port scanner uses `librpscan` (a custom built C++ wrapper around nmap) to perform active port scanning. Configure it in your `scope.yaml`:
 
 ```yaml
 port_scan_mode:
@@ -124,7 +151,7 @@ recon run --scope scope.yaml --out runs --skip-port-scan
 
 ### DirBuster
 
-DirBuster performs directory and file brute-forcing to discover hidden web resources. Configure it in your `scope.yaml`:
+The direcotry buster uses `librdirbuster` (a custom built C++ wrapper from scratch) to perform active directory path searcg. Configure it in your `scope.yaml`:
 
 ```yaml
 dirbuster_wordlist: dir-buster/wordlists/example.txt
@@ -132,7 +159,10 @@ dirbuster_wordlist: dir-buster/wordlists/example.txt
 
 DirBuster will automatically run against all domains in your scope when a wordlist is provided. It uses concurrent HTTP HEAD/GET probes to discover directories and files with interesting status codes (200, 301, 302, 403).
 
-**Note**: Both port scanning and DirBuster are **opt-in** features. They only run when explicitly configured in your `scope.yaml`. The tool remains passive-only by default.
+>[!NOTE]
+> **Note**: Both port scanning and DirBuster are **opt-in** features. They only run when explicitly configured in your `scope.yaml`.
+> The tool remains passive-only by default.
+
 
 ## Safety & Ethics
 - **Passive-first by default**: v0 queries public data sources and DNS. Active scanning (port scanning, DirBuster) is **opt-in** and must be explicitly configured in `scope.yaml`.  
@@ -147,23 +177,10 @@ DirBuster will automatically run against all domains in your scope when a wordli
 - HTML/PDF export and SARIF/STIX emitters
 - Rate limiting and throttling controls for active scans
 
-## Disclaimer
-
-This project is a **passive-first reconnaissance helper** intended for **lawful security testing, research, and education**.
-
-- **Authorized use only.** Run this tool **only** against systems/domains you own or where you have **explicit written permission** from the owner.  
-- **You are responsible for your use.** Misuse may violate laws (e.g., computer misuse / anti-hacking statutes), contracts, or company policies.  
-- **No warranty.** This software is provided **“AS IS”** under the MIT License, **without warranties** of any kind. The maintainers and contributors are **not liable** for misuse, data loss, or damage resulting from use of this software.  
-- **Compliance.** You agree to comply with all applicable laws, regulations, and organizational policies. Consult your legal counsel for guidance—this is **not legal advice**.  
-- **Safety defaults.** v0 is **passive-only by default** (CT + DNS). Active scanning features (port scanning, DirBuster) are **opt-in** and must be explicitly configured in `scope.yaml`; you must confirm authorization before enabling them.  
-- **Evidence handling.** Artifacts are stored locally by default. You are responsible for protecting any collected data and removing it when no longer authorized.
-
-By using this project, you acknowledge and agree to the above.
-
-**Read the full [DISCLAIMER & Acceptable Use](./DISCLAIMER.md).**
-
-## Community Note from the Maintainer
-
-I’m not a professional programmer or penetration tester—I’m a security-conscious enthusiast who cares about building safer systems. I develop and test ReconSentinel in my own lab on self-hosted, containerized environments, and I do my best to follow sound security practices. v0 is intentionally **passive-only** by default.
-
-This project is an active work-in-progress. I’m sharing it in good faith with the community and I welcome feedback, issues, and PRs. If you spot risks, design flaws, or ways to improve signal-to-noise, please open an issue or propose a change. Let’s build something genuinely useful and safe together.
+>[!NOTE]
+> ## Community Note from the Maintainer
+> I’m not a professional programmer or penetration tester—I’m a security-conscious enthusiast who cares about building safer systems. I develop and test ReconSentinel in my own lab on self-hosted, containerized
+> environments, and I do my best to follow sound security practices. v0 is intentionally **passive-only** by default.
+>
+> This project is an active work-in-progress. I’m sharing it in good faith with the community and I welcome feedback, issues, and PRs. If you spot risks, design flaws, or ways to improve signal-to-noise, please open an
+> issue or propose a change. Let’s build something genuinely useful and safe together.
