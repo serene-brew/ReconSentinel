@@ -322,7 +322,7 @@ def _print_version():
     else:
         print("""
 TOOL:    ReconSentinel
-VERSION: v1.0.0
+VERSION: v1.0.1
 LICENSE: BSD-3-CLAUSE
 AUTHOR:  Serene-Brew Org. and Members
 SOURCE:  https://github.com/serene-brew/ReconSentinel
@@ -514,7 +514,7 @@ def run(
     console.print('[bold cyan]██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║███████║███████╗██║ ╚████║   ██║   ██║██║ ╚████║███████╗███████╗[/bold cyan]') 
     console.print('[bold cyan]╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝[/bold cyan]') 
     console.print("")
-    console.print("[dim yellow]v1.0.0[/dim yellow]")
+    console.print("[dim yellow]v1.0.1[/dim yellow]")
     console.print("[dim yellow]Copyright (c) 2025, knightsky-cpu[/dim yellow]")
     console.print("[dim yellow]Licensed to Serene-Brew[/dim yellow]")
     console.print("")
