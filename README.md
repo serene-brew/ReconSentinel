@@ -1,7 +1,7 @@
 <div align=center>
   
 # Recon Sentinel
-## v1.0.0
+## v1.0.1
 </div>
 <div align=center>
   

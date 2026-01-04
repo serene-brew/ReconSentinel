@@ -1,6 +1,6 @@
 [project]
 name = "reconsentinel"
-version = "1.0.0"
+version = "1.0.1"
 description = "Security reconnaissance toolkit: passive-first OSINT with active scanning capabilities (port scanning, DirBuster). Scope-aware with explainable findings."
 readme = "README.md"
 requires-python = ">=3.10"
